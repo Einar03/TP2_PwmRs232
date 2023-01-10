@@ -17,6 +17,9 @@
 #include "GesFifoTh32.h"
 #include "gestPWM.h"
 
+// ======= DEFINES ======
+#define MESS_SIZE 5
+
 /*--------------------------------------------------------*/
 // Définition des fonctions prototypes
 /*--------------------------------------------------------*/

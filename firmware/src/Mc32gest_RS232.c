@@ -76,12 +76,20 @@ void InitFifoComm(void)
 // Valeur de retour 1  = message reçu donc en remote (data mis à jour)
 int GetMessage(S_pwmSettings *pData)
 {
+    // Variables
     int commStatus = 0;
+    int NbCharToRead = 0;
     
     // Traitement de réception à introduire ICI
     // Lecture et décodage fifo réception
-    // ...
-    
+    // =====================================================================
+    // Récupération du nombre de bytes dans le fifo
+    NbCharToRead = GetReadSize(&descrFifoRX);
+    // Si 5 bytes (message complet) dans le fifo, on analyse le message
+    if(NbCharToRead >= MESS_SIZE)
+    {
+        GetCharFromFifo()
+    }
     
     // Gestion controle de flux de la réception
     if(GetWriteSpace ( &descrFifoRX) >= (2*MESS_SIZE)) {
