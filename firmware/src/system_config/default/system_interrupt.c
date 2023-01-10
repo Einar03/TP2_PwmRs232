@@ -89,7 +89,7 @@ void __ISR(_TIMER_1_VECTOR, ipl4AUTO) IntHandlerDrvTmrInstance0(void)
     // Reset flag Timer 1
     PLIB_INT_SourceFlagClear(INT_ID_0,INT_SOURCE_TIMER_1);
     
-    if(initCnt < INIT_TIME)
+   /* if(initCnt < INIT_TIME)
     {
         initCnt++;
     }
@@ -101,6 +101,7 @@ void __ISR(_TIMER_1_VECTOR, ipl4AUTO) IntHandlerDrvTmrInstance0(void)
         GPWM_ExecPWM(&PWMData);
     }
     BSP_LEDOff(BSP_LED_0);
+     */
     
 }
 void __ISR(_TIMER_2_VECTOR, ipl0AUTO) IntHandlerDrvTmrInstance1(void)

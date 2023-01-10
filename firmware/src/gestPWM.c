@@ -20,7 +20,7 @@
 #include "driver/oc/drv_oc_static.h"
 #include "driver/tmr/drv_tmr_static.h"
 
-S_pwmSettings PWMData;      // pour les settings
+S_pwmSettings PWMData, PWMDataToSend;      // pour les settings
 
 void GPWM_Initialize(S_pwmSettings *pData)
 {
@@ -103,20 +103,29 @@ void GPWM_GetSettings(S_pwmSettings *pData)
     PWMData.AngleSetting = PWMData.absAngle - 90;
 }
 
-
 // Affichage des information en exploitant la structure
-void GPWM_DispSettings(S_pwmSettings *pData)
+void GPWM_DispSettings(S_pwmSettings *pData, int Remote)
 {
-    // Affichage de la vitesse signée du moteur
-    lcd_gotoxy(1,2);
-    printf_lcd("SpeedSetting %3d", pData -> SpeedSetting);
-    // Affichage de la vitesse absolute du moteur
-    lcd_gotoxy(1,3);
-    printf_lcd("absSpeed %7d", pData -> absSpeed);
-    // Affichage de l'angle du servomoteur
-    lcd_gotoxy(1,4);
-    printf_lcd("Angle %10d", pData -> AngleSetting);
-    
+      // Affichage de la vitesse signée du moteur
+       lcd_gotoxy(1,2);
+       printf_lcd("SpeedSetting %3d", pData -> SpeedSetting);
+       // Affichage de la vitesse absolute du moteur
+       lcd_gotoxy(1,3);
+       printf_lcd("absSpeed %7d", pData -> absSpeed);
+       // Affichage de l'angle du servomoteur
+       lcd_gotoxy(1,4);
+       printf_lcd("Angle %10d", pData -> AngleSetting);
+       
+    if (Remote == 1)
+    {
+       lcd_gotoxy(1,1);
+       printf_lcd("** Remote Settings");
+    }
+    else
+    {
+       lcd_gotoxy(1,1);
+       printf_lcd("Local Settings");
+    }
 }
 
 // Execution PWM et gestion moteur à partir des info dans structure

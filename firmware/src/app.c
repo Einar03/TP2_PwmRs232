@@ -171,11 +171,11 @@ void APP_Tasks ( void )
             // Line 2 : Julien Decrausaz
             // Line 3 : Einar Farinas
             lcd_gotoxy(1,1); //  (COLONNE, LIGNE)
-            printf_lcd("TP1 PWM 2022-2023");
+            printf_lcd("TP2 RS232&PWM 22-23");
             lcd_gotoxy(1,2);
-            printf_lcd("Julien Decrausaz");
+            printf_lcd("Jonathan CHAFLA");
             lcd_gotoxy(1,3);
-            printf_lcd("Einar Farinas");
+            printf_lcd("Einar FARINAS");
 
             //Initialisation de l'AD
             BSP_InitADC10();
@@ -188,6 +188,7 @@ void APP_Tasks ( void )
                    
             // Initialisation des Timers OCs et activation du pont H
             GPWM_Initialize(&PWMData);
+            InitFifoComm ();
             
             appData.state = APP_STATE_WAIT;
             break;
@@ -201,6 +202,36 @@ void APP_Tasks ( void )
 
         case APP_STATE_SERVICE_TASKS:
         {
+            int CommStatus;
+            
+            //Réception param. remote
+            CommStatus = GetMessage (&PWMData);
+            
+            //Lecture pot. 
+            if (CommStatus == 0) 
+            {
+                 GPWM_GetSettings(&PWMData);
+            }
+            else
+            {
+                 GPWM_GetSettings(&PWMDataToSend);
+            }
+           
+            //Affichage
+            GPWM_DispSettings(&PWMData,CommStatus);
+            
+            //Exécution PWM et gstion du moteur
+            GPWM_ExecPWM(&PWMData);
+            
+            //Envoi valeurs
+            if (CommStatus == 0)
+            {
+                SendMessage (&PWMData);
+            }
+            else
+            {
+                SendMessage (&PWMDataToSend);
+            }
             appData.state = APP_STATE_WAIT;
             break;
         }
