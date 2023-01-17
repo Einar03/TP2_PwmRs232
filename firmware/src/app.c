@@ -171,11 +171,11 @@ void APP_Tasks ( void )
             // Line 1 : TP1 pWM 2022-2023
             // Line 2 : Julien Decrausaz
             // Line 3 : Einar Farinas
-            lcd_gotoxy(1,1); //  (COLONNE, LIGNE)
-            printf_lcd("TP2 RS232&PWM 22-23");
-            lcd_gotoxy(1,2);
-            printf_lcd("Jonathan CHAFLA");
+            lcd_gotoxy(1,2); //  (COLONNE, LIGNE)
+            printf_lcd("TP2 PWM&RS232 22-23");
             lcd_gotoxy(1,3);
+            printf_lcd("Jonathan CHAFLA");
+            lcd_gotoxy(1,4);
             printf_lcd("Einar FARINAS");
 
             //Initialisation de l'AD

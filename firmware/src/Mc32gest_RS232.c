@@ -52,11 +52,9 @@ int8_t fifoRX[FIFO_RX_SIZE];
 // Declaration du descripteur du FIFO de réception
 S_fifo descrFifoRX;
 
-
 int8_t fifoTX[FIFO_TX_SIZE];
 // Declaration du descripteur du FIFO d'émission
 S_fifo descrFifoTX;
-
 
 // Initialisation de la communication sérielle
 void InitFifoComm(void)
@@ -103,23 +101,46 @@ int GetMessage(S_pwmSettings *pData)
 // Fonction d'envoi des messages, appel cyclique
 void SendMessage(S_pwmSettings *pData)
 {
-    int8_t freeSize;
+    int8_t FreeSize;
     
     // Traitement émission à introduire ICI
     // Formatage message et remplissage fifo émission
     // ...
-    
+     FreeSize = GetWriteSpace (&descrFifoTX);
+    if (FreeSize >= MESS_SIZE )
+    {
+        // Composition du message
+        
+         //message de start = STX_code (0xAA)
+        TxMess.Start = STX_code;
+        //prépart le message de l'angle
+        TxMess.Angle = pData->AngleSetting;
+        //prépart le message de la vitesse
+        TxMess.Speed = pData->SpeedSetting;
+        
+        ///manque///
+        
+        
+        ///manque///
+        
+        
+        // Dépose le message dans le fifo
+        PutCharInFifo (&descrFifoTX, TxMess.Start);
+        PutCharInFifo (&descrFifoTX, TxMess.Speed);
+        PutCharInFifo (&descrFifoTX, TxMess.Angle);
+        PutCharInFifo (&descrFifoTX, TxMess.MsbCrc);
+        PutCharInFifo (&descrFifoTX, TxMess.LsbCrc);  
+    }
     
     // Gestion du controle de flux
     // si on a un caractère à envoyer et que CTS = 0
-    freeSize = GetReadSize(&descrFifoTX);
-    if ((RS232_CTS == 0) && (freeSize > 0))
+    FreeSize = GetReadSize(&descrFifoTX);
+    if ((RS232_CTS == 0) && (FreeSize > 0))
     {
         // Autorise int émission    
         PLIB_INT_SourceEnable(INT_ID_0, INT_SOURCE_USART_1_TRANSMIT);                
     }
 }
-
 
 // Interruption USART1
 // !!!!!!!!
