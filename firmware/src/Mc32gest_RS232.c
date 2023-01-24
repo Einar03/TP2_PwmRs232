@@ -234,6 +234,11 @@ void SendMessage(S_pwmSettings *pData)
 			//  (pour savoir s'il y a une data dans le buffer HW RX : PLIB_USART_ReceiverDataIsAvailable())
 			//  (Lecture via fonction PLIB_USART_ReceiverByteReceive())
             // ...
+            while(PLIB_USART_ReceiverDataIsAvailable(USART_ID_1))
+            {
+                c = PLIB_USART_ReceiverByteReceive(USART_ID_1);
+                PutCharInFifo(&descrFifoRX, c);
+            }
             
                          
             LED4_W = !LED4_R; // Toggle Led4
