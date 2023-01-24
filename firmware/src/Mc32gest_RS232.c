@@ -43,6 +43,8 @@ typedef struct {
 StruMess TxMess;
 // Struct pour réception des messages
 StruMess RxMess;
+// Union pour le CRC du message
+U_manip16 RxValCrc16;
 
 // Declaration des FIFO pour réception et émission
 #define FIFO_RX_SIZE ( (4*MESS_SIZE) + 1)  // 4 messages
@@ -78,17 +80,92 @@ int GetMessage(S_pwmSettings *pData)
 {
     // Variables
     int commStatus = 0;
-    int NbCharToRead = 0;
-    
+	uint8_t NbCharInFifo = 0;
+	uint8_t	findFlag = 0;
+	uint8_t i = 0;
+	uint16_t ValCrc16 = 0;
+    static uint8_t NbCharToRead = 5;
+	static uint8_t startIndex = 0;
+    static int8_t tb_ReadValues[5] = {0,0,0,0,0};
+	
     // Traitement de réception à introduire ICI
     // Lecture et décodage fifo réception
     // =====================================================================
     // Récupération du nombre de bytes dans le fifo
-    NbCharToRead = GetReadSize(&descrFifoRX);
+    NbCharInFifo = GetReadSize(&descrFifoRX);
     // Si 5 bytes (message complet) dans le fifo, on analyse le message
-    if(NbCharToRead >= MESS_SIZE)
+    if(NbCharInFifo >= NbCharToRead)
     {
-        GetCharFromFifo()
+		// Récupération et sauvegarde des 5 bytes du message 
+        // complet dans tb_ReadValues
+		for(i = 0; i < (NbCharToRead - 1); i++)
+        commStatus = GetCharFromFifo(&descrFifoRX, 
+                &tb_ReadValues[i + 5 - startIndex]);
+		if(NbCharToRead != 5)
+		{
+			NbCharToRead = 5;
+			startIndex = 0;
+		}
+		// Si le premier byte est 0xAA (-86 avec int8_t => STX_code)
+		if(tb_ReadValues[0] == STX_code)
+		{
+			// Récupération et sauvegarde des données CRC réçues
+            // (MSL et LSB) dans RxValCrc16
+			RxValCrc16.shl.msb = tb_ReadValues[3];
+			RxValCrc16.shl.lsb = tb_ReadValues[4];
+			ValCrc16 = 0xFFFF;
+            ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[0]);
+            ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[1]);
+            ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[2]);
+            
+			// Si le CRC calculé égal CRC du message
+			if(ValCrc16 == RxValCrc16)
+			{
+				// Mettre à jour les variables "Speed" et "Angle"
+				pData -> SpeedSetting = tb_ReadValues[1];
+				pData -> AngleSetting = tb_ReadValues[2];
+				commStatus = 1;
+			}
+			else
+			{
+				commStatus = 0;
+			}
+		}
+		else
+		{
+			//i = 0;
+			// Recherche du début du message 0xAA dans les données reçues
+			for(i = 1; i < (NbCharToRead - 1); i++)
+			{
+				if(findFlag != 0)
+				{
+					if(startIndex < 4)
+					{
+						// Sauvegarde du reste des données à la suite
+                        // de la première case du tableau
+						tb_ReadValues[i-startIndex] = tb_ReadValues[i];
+					}
+				}
+				else
+				{
+					// 
+					if(tb_ReadValues[i] == STX_code)
+					{
+						// Activer le flag
+						findFlag = 1;
+						// Récupération de l'indice du début du message
+						startIndex = i;
+						// Deplacement du byte de start dans la premier case
+                        // de tb_ReadValues
+						tb_ReadValues[0] = tb_ReadValues[i];
+						// Calcul du nombre de bytes qui restent pour 
+                        // le message complet est sauvegarde dans
+						NbCharToRead = startIndex;
+						
+					}
+				}
+			}
+		}
     }
     
     // Gestion controle de flux de la réception
@@ -157,6 +234,11 @@ void SendMessage(S_pwmSettings *pData)
 			//  (pour savoir s'il y a une data dans le buffer HW RX : PLIB_USART_ReceiverDataIsAvailable())
 			//  (Lecture via fonction PLIB_USART_ReceiverByteReceive())
             // ...
+            while(PLIB_USART_ReceiverDataIsAvailable(USART_ID_1))
+            {
+                c = PLIB_USART_ReceiverByteReceive(USART_ID_1);
+                PutCharInFifo(&descrFifoRX, c);
+            }
             
                          
             LED4_W = !LED4_R; // Toggle Led4
