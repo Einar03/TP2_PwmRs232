@@ -78,17 +78,28 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 
 // Defines
 #define INIT_TIME 150
- 
 
 void __ISR(_TIMER_1_VECTOR, ipl4AUTO) IntHandlerDrvTmrInstance0(void)
 {
     // Compteur pour l'initialisation
     static uint8_t initCnt = 0;
     
-    BSP_LEDOn(BSP_LED_0);
+    //BSP_LEDOn(BSP_LED_0);
+    
     // Reset flag Timer 1
     PLIB_INT_SourceFlagClear(INT_ID_0,INT_SOURCE_TIMER_1);
     
+    if(initCnt < INIT_TIME)
+    {
+        initCnt++;
+    }
+    else
+    {
+        APP_UpdateState(APP_STATE_SERVICE_TASKS);
+    }
+    BSP_LEDOff(BSP_LED_3);
+
+   
    /* if(initCnt < INIT_TIME)
     {
         initCnt++;
