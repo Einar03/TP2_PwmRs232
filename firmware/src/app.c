@@ -55,6 +55,8 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 
 // declaration 
 #include "app.h"
+#include "Mc32gest_RS232.h"
+#include "gestPWM.h"
 
 
 // *****************************************************************************
@@ -143,6 +145,8 @@ void APP_Initialize ( void )
 
 void APP_Tasks ( void )
 {
+    // Variables
+    static uint8_t cntSend = 0;
     
     //TABLEAU LEDS
     static BSP_LED Tab_LEDS [8] =
@@ -204,9 +208,9 @@ void APP_Tasks ( void )
         case APP_STATE_SERVICE_TASKS:
         {
             int CommStatus;
-            
+            cntSend = (cntSend + 1) % 5;
             //Réception param. remote
-            CommStatus = GetMessage (&PWMData);
+            CommStatus = GetMessage(&PWMData);
             
             //Lecture pot. 
             if (CommStatus == 0) 
@@ -221,17 +225,20 @@ void APP_Tasks ( void )
             //Affichage
             GPWM_DispSettings(&PWMData,CommStatus);
             
-            //Exécution PWM et gstion du moteur
+            //Exécution PWM et gestion du moteur
             GPWM_ExecPWM(&PWMData);
             
-            //Envoi valeurs
-            if (CommStatus == 0)
+            if(cntSend >= 5)
             {
-                SendMessage (&PWMData);
-            }
-            else
-            {
-                SendMessage (&PWMDataToSend);
+                //Envoi valeurs
+                if (CommStatus == 0)
+                {
+                    SendMessage (&PWMData);
+                }
+                else
+                {
+                    SendMessage (&PWMDataToSend);
+                }
             }
             appData.state = APP_STATE_WAIT;
             break;

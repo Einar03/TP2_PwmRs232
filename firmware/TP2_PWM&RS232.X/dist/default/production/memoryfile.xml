@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?> 
 <project>                                  
-  <executable name="dist/default/production/TP1_TimerPWM.X.production.elf">                 
+  <executable name="dist/default/production/TP2_PWM_RS232.X.production.elf">                 
     <memory name="program">                 
       <units>bytes</units>                 
       <length>531968</length>                 
-      <used>32936</used>                     
-      <free>499032</free>                     
+      <used>37156</used>                     
+      <free>494812</free>                     
     </memory>                              
     <memory name="data">              
       <units>bytes</units>                 
       <length>131072</length>                 
-      <used>136</used>                     
-      <free>130936</free>                     
+      <used>288</used>                     
+      <free>130784</free>                     
     </memory>                              
   </executable>                            
 </project>                                 
