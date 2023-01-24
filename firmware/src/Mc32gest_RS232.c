@@ -86,7 +86,7 @@ int GetMessage(S_pwmSettings *pData)
     // Si 5 bytes (message complet) dans le fifo, on analyse le message
     if(NbCharToRead >= MESS_SIZE)
     {
-        GetCharFromFifo()
+        GetCharFromFifo();
     }
     
     // Gestion controle de flux de la réception
