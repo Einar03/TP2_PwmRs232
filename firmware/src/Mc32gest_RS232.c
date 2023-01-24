@@ -102,28 +102,32 @@ int GetMessage(S_pwmSettings *pData)
 void SendMessage(S_pwmSettings *pData)
 {
     int8_t FreeSize;
-    
+    //selon spec. CCITT il faut initialiser la valeur du Crc16 à 0xFFFF
+    int8_t ValueCrc16 = 0xFFFF; 
+
     // Traitement émission à introduire ICI
     // Formatage message et remplissage fifo émission
     // ...
      FreeSize = GetWriteSpace (&descrFifoTX);
     if (FreeSize >= MESS_SIZE )
     {
-        // Composition du message
-        
+      // Composition du message
          //message de start = STX_code (0xAA)
         TxMess.Start = STX_code;
-        //prépart le message de l'angle
+        //prépare le message de l'angle
         TxMess.Angle = pData->AngleSetting;
-        //prépart le message de la vitesse
+        //prépare le message de la vitesse
         TxMess.Speed = pData->SpeedSetting;
         
-        ///manque///
+        //Calcul du CRC sur 3 premiers valeurs
+        ValueCrc16 = updateCRC16 (ValueCrc16, TxMess.Start);
+        ValueCrc16 = updateCRC16 (ValueCrc16, TxMess.Speed);
+        ValueCrc16 = updateCRC16 (ValueCrc16, TxMess.Angle);  
         
-        
-        ///manque///
-        
-        
+        //recupeler valeurs du message
+        TxMess.MsbCrc = (ValueCrc16 & 0xFF00) >> 8;  // récupère MSB du CRC par masquage
+        TxMess.LsbCrc = (ValueCrc16 & 0x00FF);  // récupère LSB du CRC par masquage
+       
         // Dépose le message dans le fifo
         PutCharInFifo (&descrFifoTX, TxMess.Start);
         PutCharInFifo (&descrFifoTX, TxMess.Speed);
@@ -131,7 +135,6 @@ void SendMessage(S_pwmSettings *pData)
         PutCharInFifo (&descrFifoTX, TxMess.MsbCrc);
         PutCharInFifo (&descrFifoTX, TxMess.LsbCrc);  
     }
-    
     // Gestion du controle de flux
     // si on a un caractère à envoyer et que CTS = 0
     FreeSize = GetReadSize(&descrFifoTX);
@@ -146,7 +149,7 @@ void SendMessage(S_pwmSettings *pData)
 // !!!!!!!!
 // Attention ne pas oublier de supprimer la réponse générée dans system_interrupt
 // !!!!!!!!
- void __ISR(_UART_1_VECTOR, ipl5AUTO) _IntHandlerDrvUsartInstance0(void)
+ void __ISR(_UART_1_VECTOR, ipl5AUTO) _IntHandlerDrvUsartInstance0(void)    
 {
     USART_ERROR UsartStatus;    
 
