@@ -44,7 +44,7 @@ StruMess TxMess;
 // Struct pour réception des messages
 StruMess RxMess;
 // Union pour le CRC du message
-U_manip16 = RxValCrc16
+U_manip16 RxValCrc16;
 
 // Declaration des FIFO pour réception et émission
 #define FIFO_RX_SIZE ( (4*MESS_SIZE) + 1)  // 4 messages
@@ -96,9 +96,11 @@ int GetMessage(S_pwmSettings *pData)
     // Si 5 bytes (message complet) dans le fifo, on analyse le message
     if(NbCharInFifo >= NbCharToRead)
     {
-		// Récupération et sauvegarde des 5 bytes du message complet dans tb_ReadValues
+		// Récupération et sauvegarde des 5 bytes du message 
+        // complet dans tb_ReadValues
 		for(i = 0; i < (NbCharToRead - 1); i++)
-        commStatus = GetCharFromFifo(&decrFifoRX, &tb_ReadValues[i + 5 - startIndex]);
+        commStatus = GetCharFromFifo(&descrFifoRX, 
+                &tb_ReadValues[i + 5 - startIndex]);
 		if(NbCharToRead != 5)
 		{
 			NbCharToRead = 5;
@@ -107,10 +109,15 @@ int GetMessage(S_pwmSettings *pData)
 		// Si le premier byte est 0xAA (-86 avec int8_t => STX_code)
 		if(tb_ReadValues[0] == STX_code)
 		{
-			// Récupération et sauvegarde des données CRC réçues (MSL et LSB) dans RxValCrc16
-			RxValCrc16.sh1.msb = tb_ReadValues[3];
-			RxValCrc16.sh1.lsb = tb_ReadValues[4];
-			//ValCrc16 = ;
+			// Récupération et sauvegarde des données CRC réçues
+            // (MSL et LSB) dans RxValCrc16
+			RxValCrc16.shl.msb = tb_ReadValues[3];
+			RxValCrc16.shl.lsb = tb_ReadValues[4];
+			ValCrc16 = 0xFFFF;
+            ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[0]);
+            ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[1]);
+            ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[2]);
+            
 			// Si le CRC calculé égal CRC du message
 			if(ValCrc16 == RxValCrc16)
 			{
@@ -134,7 +141,8 @@ int GetMessage(S_pwmSettings *pData)
 				{
 					if(startIndex < 4)
 					{
-						// Sauvegarde du reste des données à la suite de la première case du tableau
+						// Sauvegarde du reste des données à la suite
+                        // de la première case du tableau
 						tb_ReadValues[i-startIndex] = tb_ReadValues[i];
 					}
 				}
@@ -147,10 +155,11 @@ int GetMessage(S_pwmSettings *pData)
 						findFlag = 1;
 						// Récupération de l'indice du début du message
 						startIndex = i;
-						// Deplacement du byte de start dans la premier case de tb_ReadValues
+						// Deplacement du byte de start dans la premier case
+                        // de tb_ReadValues
 						tb_ReadValues[0] = tb_ReadValues[i];
-						// Calcul du nombre de bytes qui restent pour le message complet est sauvegarde dans
-						// NbCharToRead
+						// Calcul du nombre de bytes qui restent pour 
+                        // le message complet est sauvegarde dans
 						NbCharToRead = startIndex;
 						
 					}
