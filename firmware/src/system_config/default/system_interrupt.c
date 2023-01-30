@@ -97,7 +97,7 @@ void __ISR(_TIMER_1_VECTOR, ipl4AUTO) IntHandlerDrvTmrInstance0(void)
     {
         APP_UpdateState(APP_STATE_SERVICE_TASKS);
     }
-    BSP_LEDOff(BSP_LED_3);
+   // BSP_LEDOff(BSP_LED_3);
 
    
    /* if(initCnt < INIT_TIME)

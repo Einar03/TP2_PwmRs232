@@ -80,6 +80,10 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
     Application strings and buffers are be defined outside this structure.
 */
 
+// Defines
+#define NB_CYCLE 5
+
+
 APP_DATA appData;
 
 uint8_t i = 0; //VARIABLE DE COMPTAGE POUR LES LEDS
@@ -146,7 +150,7 @@ void APP_Initialize ( void )
 void APP_Tasks ( void )
 {
     // Variables
-    static uint8_t cntSend = 0;
+    static uint8_t cntCycle = 0;
     
     //TABLEAU LEDS
     static BSP_LED Tab_LEDS [8] =
@@ -208,7 +212,7 @@ void APP_Tasks ( void )
         case APP_STATE_SERVICE_TASKS:
         {
             int CommStatus;
-            cntSend = (cntSend + 1) % 5;
+            cntCycle = (cntCycle + 1) % NB_CYCLE;
             //Réception param. remote
             CommStatus = GetMessage(&PWMData);
             
@@ -228,7 +232,7 @@ void APP_Tasks ( void )
             //Exécution PWM et gestion du moteur
             GPWM_ExecPWM(&PWMData);
             
-            if(cntSend >= 5)
+            if(cntCycle >= (NB_CYCLE - 1))
             {
                 //Envoi valeurs
                 if (CommStatus == 0)

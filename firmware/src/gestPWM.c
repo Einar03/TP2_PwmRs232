@@ -25,6 +25,10 @@ S_pwmSettings PWMData, PWMDataToSend;      // pour les settings
 void GPWM_Initialize(S_pwmSettings *pData)
 {
     // Init les data 
+    pData -> AngleSetting = 0;
+    pData -> SpeedSetting = 0;
+    pData -> absAngle = 0;
+    pData -> absSpeed = 0;
     
     // Init état du pont en H
     BSP_EnableHbrige();
@@ -87,20 +91,20 @@ void GPWM_GetSettings(S_pwmSettings *pData)
     // conversion  
     ValADC1 = (Moy1*198) / 1023;
     
-    PWMData.SpeedSetting = ValADC1 - 99;
-    if(PWMData.SpeedSetting < 0)
+    pData -> SpeedSetting = ValADC1 - 99;
+    if(pData -> SpeedSetting < 0)
     {
-        PWMData.absSpeed = PWMData.SpeedSetting * -1;
+        pData -> absSpeed = pData -> SpeedSetting * -1;
     }
     else
     {
-        PWMData.absSpeed = PWMData.SpeedSetting;
+        pData -> absSpeed = pData -> SpeedSetting;
     }
     
     // conversion  
-    PWMData.absAngle = (Moy2*180) / 1023;
+    pData -> absAngle = (Moy2*180) / 1023;
     
-    PWMData.AngleSetting = PWMData.absAngle - 90;
+    pData -> AngleSetting = pData -> absAngle - 90;
 }
 
 // Affichage des information en exploitant la structure
@@ -143,15 +147,11 @@ void GPWM_ExecPWM(S_pwmSettings *pData)
     {
         PLIB_PORTS_PinClear( PORTS_ID_0, PORT_CHANNEL_D, AIN1_HBRIDGE_BIT);
         PLIB_PORTS_PinSet( PORTS_ID_0, PORT_CHANNEL_D, AIN2_HBRIDGE_BIT);
-        //AIN1_HBRIDGE_W = 0;   //AIN1 High
-        //AIN2_HBRIDGE_W = 1;
     }
     else
     {
         PLIB_PORTS_PinSet( PORTS_ID_0, PORT_CHANNEL_D, AIN1_HBRIDGE_BIT);
         PLIB_PORTS_PinClear( PORTS_ID_0, PORT_CHANNEL_D, AIN2_HBRIDGE_BIT);
-        //AIN1_HBRIDGE_W = 1;   //AIN1 High
-        //AIN2_HBRIDGE_W = 0;
     }
     
     // Calcul pour la conversion de la valeur de pData.absSpeed en %

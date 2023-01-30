@@ -43,8 +43,6 @@ typedef struct {
 StruMess TxMess;
 // Struct pour réception des messages
 StruMess RxMess;
-// Union pour le CRC du message
-U_manip16 RxValCrc16;
 
 // Declaration des FIFO pour réception et émission
 #define FIFO_RX_SIZE ( (4*MESS_SIZE) + 1)  // 4 messages
@@ -79,13 +77,15 @@ int GetMessage(S_pwmSettings *pData)
     // Variables
     static int commStatus = 0;
 	uint8_t NbCharInFifo = 0;
-	uint8_t	findFlag = 0;
+	static uint8_t	findFlag = 0;
 	uint8_t i = 0;
 	uint16_t ValCrc16 = 0;
     static uint8_t NbCharToRead = 5;
 	static uint8_t startIndex = 0;
     static int8_t tb_ReadValues[5] = {0,0,0,0,0};
     static uint8_t cntConnect = 0;
+    // Union pour le CRC du message
+    U_manip16 RxValCrc16;
 	
     
     // Traitement de r�ception � introduire ICI
@@ -95,8 +95,7 @@ int GetMessage(S_pwmSettings *pData)
     // Si 5 bytes (message complet) dans le fifo, on analyse le message
     if(NbCharInFifo >= NbCharToRead)
     {
-		// R�cup�ration et sauvegarde des 5 bytes du message 
-        //GetCharFromFifo()
+		// R�cup�ration et sauvegarde des 5 bytes du message
         cntConnect = 0;
         // complet dans tb_ReadValues
         if(startIndex == 0)
@@ -118,11 +117,6 @@ int GetMessage(S_pwmSettings *pData)
 			startIndex = 0;
         }
 		
-		//if(NbCharToRead != 5)
-		//{
-		//	NbCharToRead = 5;
-		//	startIndex = 0;
-		//}
         
 		// Si le premier byte est 0xAA (-86 avec int8_t => STX_code)
 		if(tb_ReadValues[0] == STX_code)
@@ -130,6 +124,7 @@ int GetMessage(S_pwmSettings *pData)
             // (MSL et LSB) dans RxValCrc16
 			RxValCrc16.shl.msb = tb_ReadValues[3];
 			RxValCrc16.shl.lsb = tb_ReadValues[4];
+            // Calcul CRC du message re�u
 			ValCrc16 = 0xFFFF;
             ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[0]);
             ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[1]);
@@ -140,19 +135,29 @@ int GetMessage(S_pwmSettings *pData)
 			{
 				// Mettre à jour les variables "Speed" et "Angle"
 				pData -> SpeedSetting = tb_ReadValues[1];
-				pData -> AngleSetting = tb_ReadValues[2];
+                if(tb_ReadValues[1] < 0)
+                {
+                    pData -> absSpeed = tb_ReadValues[1] * -1;
+                }
+                else
+                {
+                    pData -> absSpeed = tb_ReadValues[1];
+                }
+                pData -> AngleSetting = tb_ReadValues[2];
+                pData -> absAngle = tb_ReadValues[2] + 99;
 				commStatus = 1;
 			}
 			else
 			{
-				commStatus = 0;
+                BSP_LEDToggle(BSP_LED_6);
+				//commStatus = 0;
 			}
 		}
 		else
 		{
-			//i = 0;
+			i = 0;
 			// Recherche du début du message 0xAA dans les données reçues
-			for(i = 1; i < (NbCharToRead - 1); i++)
+			for(i = 1; i < MESS_SIZE; i++)
 			{
 				if(findFlag != 0)
 				{
@@ -162,6 +167,7 @@ int GetMessage(S_pwmSettings *pData)
                         // de la première case du tableau
 						tb_ReadValues[i-startIndex] = tb_ReadValues[i];
 					}
+                    findFlag = 0;
 				}
 				else
 				{
@@ -183,13 +189,11 @@ int GetMessage(S_pwmSettings *pData)
 				}
 			}
 		}
-
-        //GetCharFromFifo();
     }
     else
     {
         cntConnect++;
-        if(cntConnect == 10)
+        if(cntConnect >= 10)
         {
             commStatus = 0;
         }
@@ -209,16 +213,18 @@ void SendMessage(S_pwmSettings *pData)
 {
     int8_t FreeSize = 0;
     //selon spec. CCITT il faut initialiser la valeur du Crc16 à 0xFFFF
-    int16_t ValueCrc16 = 0xFFFF; 
-
+    int16_t ValueCrc16 = 0xFFFF;
+    // Union pour le CRC du message
+    U_manip16 TxValCrc16;
+    
+    TxValCrc16.val = 0xFFFF;
+    
     // Traitement émission à introduire ICI
     // Formatage message et remplissage fifo émission
-    // ...
      FreeSize = GetWriteSpace (&descrFifoTX);
-    if (FreeSize >= MESS_SIZE )
+    if (FreeSize >= MESS_SIZE)
     {
-      // Composition du message
-         //message de start = STX_code (0xAA)
+        // Composition du message
         TxMess.Start = STX_code;
         //prépare le message de l'angle
         TxMess.Angle = pData->AngleSetting;
@@ -226,14 +232,16 @@ void SendMessage(S_pwmSettings *pData)
         TxMess.Speed = pData->SpeedSetting;
         
         //Calcul du CRC sur 3 premiers valeurs
-        ValueCrc16 = updateCRC16 (ValueCrc16, TxMess.Start);
-        ValueCrc16 = updateCRC16 (ValueCrc16, TxMess.Speed);
-        ValueCrc16 = updateCRC16 (ValueCrc16, TxMess.Angle);  
+        TxValCrc16.val = updateCRC16 (TxValCrc16.val, TxMess.Start);
+        TxValCrc16.val = updateCRC16 (TxValCrc16.val, TxMess.Speed);
+        TxValCrc16.val = updateCRC16 (TxValCrc16.val, TxMess.Angle);  
         
         //recupeler valeurs du message
-        TxMess.MsbCrc = (ValueCrc16 & 0xFF00) >> 8;  // récupère MSB du CRC par masquage
-        TxMess.LsbCrc = (ValueCrc16 & 0x00FF);  // récupère LSB du CRC par masquage
-       
+        //TxMess.MsbCrc = (ValueCrc16 & 0xFF00) >> 8;  // récupère MSB du CRC par masquage
+        //TxMess.LsbCrc = (ValueCrc16 & 0x00FF);  // récupère LSB du CRC par masquage
+        TxMess.MsbCrc = TxValCrc16.shl.msb;
+        TxMess.LsbCrc = TxValCrc16.shl.lsb;
+        
         // Dépose le message dans le fifo
         PutCharInFifo (&descrFifoTX, TxMess.Start);
         PutCharInFifo (&descrFifoTX, TxMess.Speed);
