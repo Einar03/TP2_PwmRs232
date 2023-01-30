@@ -88,7 +88,7 @@ void GPWM_GetSettings(S_pwmSettings *pData)
     Moy2 = Moy2 / 10;
     
     //===============================================//
-    // conversion  
+    // Conversion valerus pour le moteur DC
     ValADC1 = (Moy1*198) / 1023;
     
     pData -> SpeedSetting = ValADC1 - 99;
@@ -101,7 +101,7 @@ void GPWM_GetSettings(S_pwmSettings *pData)
         pData -> absSpeed = pData -> SpeedSetting;
     }
     
-    // conversion  
+    // Conversion valeurs pour le servomoteur
     pData -> absAngle = (Moy2*180) / 1023;
     
     pData -> AngleSetting = pData -> absAngle - 90;
@@ -140,9 +140,7 @@ void GPWM_ExecPWM(S_pwmSettings *pData)
     uint32_t OC3_DutyCycle = 0;
     
     // Gestion de la direction en focntion du signe de la vitesse
-    // Bit8 de pData.SpeedSetting = au signe de la vitesse
-    // Masquage du bit8 dans pData.SpeedSetting pour savoir la direction
-    // Si bit8 = 1 -> direction CCW , sinon direction CW
+    // Si SpeedSetting > 0 -> direction CCW , sinon direction CW
     if(pData -> SpeedSetting > 0)
     {
         PLIB_PORTS_PinClear( PORTS_ID_0, PORT_CHANNEL_D, AIN1_HBRIDGE_BIT);
@@ -173,6 +171,7 @@ void GPWM_ExecPWMSoft(S_pwmSettings *pData)
     // Compteur pour la PWM
     static uint8_t PWM_Cnt = 0;
     
+	// Compteur de 0 à 99 
     PWM_Cnt = (PWM_Cnt + 1) % 100;
    
     if ( PWM_Cnt < pData->absSpeed)

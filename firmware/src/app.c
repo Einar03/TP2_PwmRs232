@@ -82,6 +82,8 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 
 // Defines
 #define NB_CYCLE 5
+#define REMOTE 1
+#define LOCAL 0
 
 
 APP_DATA appData;
@@ -126,13 +128,13 @@ void APP_Initialize ( void )
 {
     /* Place the App state machine in its initial state. */
     appData.state = APP_STATE_INIT;
-    DRV_OC0_Initialize();
-    DRV_OC1_Initialize();
+    DRV_OC0_Initialize();		// OC2
+    DRV_OC1_Initialize();		// OC3
     
-    DRV_TMR0_Initialize();
-    DRV_TMR1_Initialize();
-    DRV_TMR2_Initialize();
-    // DRV_TMR3_Initialize();
+    DRV_TMR0_Initialize();		// Timer1
+    DRV_TMR1_Initialize();		// Timer2
+    DRV_TMR2_Initialize();		// Timer3
+    // DRV_TMR3_Initialize();	// Timer4 (pas utilisé dans ce projet)
     /* TODO: Initialize your application's state machine and other
      * parameters.
      */
@@ -151,6 +153,8 @@ void APP_Tasks ( void )
 {
     // Variables
     static uint8_t cntCycle = 0;
+	// Variables locales
+    int CommStatus;
     
     //TABLEAU LEDS
     static BSP_LED Tab_LEDS [8] =
@@ -176,9 +180,9 @@ void APP_Tasks ( void )
             lcd_bl_on();
                
             //Affichage initial, exemple :
-            // Line 1 : TP1 pWM 2022-2023
-            // Line 2 : Julien Decrausaz
-            // Line 3 : Einar Farinas
+            // Line 1 : TP2 PWM&RS232 22-23
+            // Line 2 : Jonathan CHAFLA
+            // Line 3 : Einar FARINAS
             lcd_gotoxy(1,2); //  (COLONNE, LIGNE)
             printf_lcd("TP2 PWM&RS232 22-23");
             lcd_gotoxy(1,3);
@@ -197,6 +201,7 @@ void APP_Tasks ( void )
                    
             // Initialisation des Timers OCs et activation du pont H
             GPWM_Initialize(&PWMData);
+			// Initialisation de la communication sérielle
             InitFifoComm ();
             
             appData.state = APP_STATE_WAIT;
@@ -211,16 +216,17 @@ void APP_Tasks ( void )
 
         case APP_STATE_SERVICE_TASKS:
         {
-            int CommStatus;
+			// Competeur de 0 à 4 (5 cycles)
             cntCycle = (cntCycle + 1) % NB_CYCLE;
             //Réception param. remote
             CommStatus = GetMessage(&PWMData);
             
-            //Lecture pot. 
-            if (CommStatus == 0) 
+            //Lecture pot. en mode local
+            if (CommStatus == LOCAL) 
             {
                  GPWM_GetSettings(&PWMData);
             }
+			// lecture pot. pour envoi en mode remote
             else
             {
                  GPWM_GetSettings(&PWMDataToSend);
@@ -229,13 +235,14 @@ void APP_Tasks ( void )
             //Affichage
             GPWM_DispSettings(&PWMData,CommStatus);
             
-            //Exécution PWM et gestion du moteur
+            //Exécution des PWMs et gestion du moteur
             GPWM_ExecPWM(&PWMData);
             
+			// Si 5 cycles sont passés
             if(cntCycle >= (NB_CYCLE - 1))
             {
                 //Envoi valeurs
-                if (CommStatus == 0)
+                if (CommStatus == LOCAL)
                 {
                     SendMessage (&PWMData);
                 }

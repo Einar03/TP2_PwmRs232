@@ -75,45 +75,64 @@ void InitFifoComm(void)
 int GetMessage(S_pwmSettings *pData)
 {
     // Variables
+	// Etat de connexion
     static int commStatus = 0;
+	// Nombre de caractères dans le Fifo
 	uint8_t NbCharInFifo = 0;
+	// Flag pour indiquer la détection du byte Start (0xAA)
 	static uint8_t	findFlag = 0;
+	// Compteur pour les boucles for
 	uint8_t i = 0;
+	// Variable pour le calcul du CRC du message reçu
 	uint16_t ValCrc16 = 0;
+	// Nombre de caractères à lire dans le Fifo
     static uint8_t NbCharToRead = 5;
+	// Variables pour sauvegarder la position du byte start dans le tableau
 	static uint8_t startIndex = 0;
+	// Tableau pour sauvegarder un message complet (5 bytes) du fifo
     static int8_t tb_ReadValues[5] = {0,0,0,0,0};
+	// Compteur d'attente d'un message avant de sortir du mode remote
     static uint8_t cntConnect = 0;
-    // Union pour le CRC du message
+    // Union pour la sauvegarde du CRC du message reçu
     U_manip16 RxValCrc16;
 	
     
-    // Traitement de r�ception � introduire ICI
-    // Lecture et d�codage fifo r�ception
+    // Traitement de réception à introduire ICI
+    // Lecture et décodage fifo réception
     // =====================================================================
     NbCharInFifo = GetReadSize(&descrFifoRX);
     // Si 5 bytes (message complet) dans le fifo, on analyse le message
+	//---------------------------------------------------------------------
     if(NbCharInFifo >= NbCharToRead)
     {
-		// R�cup�ration et sauvegarde des 5 bytes du message
+		// Reset compteur d'attente
         cntConnect = 0;
+		// Récupération et sauvegarde des 5 bytes du message
         // complet dans tb_ReadValues
+		
+		// Si le message précédent était correct
         if(startIndex == 0)
         {
+			// Récupération des 5 bytes
             for(i = 0; i < NbCharToRead; i++)
             {
                 commStatus = GetCharFromFifo(&descrFifoRX, 
                     &tb_ReadValues[i]);
             }
         }
+		// Si le message précédent était tronqué
         else
         {
+			// Récupération des bytes qui manquent
             for(i = 0; i < NbCharToRead; i++)
             {
                 commStatus = GetCharFromFifo(&descrFifoRX, 
                 &tb_ReadValues[i + 5 - startIndex]);
             }
+			// Reset à la valeur par défaut du nombre de bytes à lire
+			// dans le fifo
             NbCharToRead = 5;
+			// Reset startIndex
 			startIndex = 0;
         }
 		
@@ -121,10 +140,10 @@ int GetMessage(S_pwmSettings *pData)
 		// Si le premier byte est 0xAA (-86 avec int8_t => STX_code)
 		if(tb_ReadValues[0] == STX_code)
 		{
-            // (MSL et LSB) dans RxValCrc16
+            // (MSL et LSB) du message reçu dans RxValCrc16
 			RxValCrc16.shl.msb = tb_ReadValues[3];
 			RxValCrc16.shl.lsb = tb_ReadValues[4];
-            // Calcul CRC du message re�u
+            // Calcul CRC du message reçu
 			ValCrc16 = 0xFFFF;
             ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[0]);
             ValCrc16 = updateCRC16(ValCrc16, tb_ReadValues[1]);
@@ -133,7 +152,9 @@ int GetMessage(S_pwmSettings *pData)
 			// Si le CRC calculé égal CRC du message
 			if(ValCrc16 == RxValCrc16.val)
 			{
-				// Mettre à jour les variables "Speed" et "Angle"
+				// Mettre à jour toutes les variables dans la structure pData
+				// ----------------------------------------------------------
+				// Pour le moteur DC
 				pData -> SpeedSetting = tb_ReadValues[1];
                 if(tb_ReadValues[1] < 0)
                 {
@@ -143,22 +164,26 @@ int GetMessage(S_pwmSettings *pData)
                 {
                     pData -> absSpeed = tb_ReadValues[1];
                 }
-                pData -> AngleSetting = tb_ReadValues[2];
+				// Pour le servomoteur
+                pData -> AngleSetting = tb_ReadValues[2];			
                 pData -> absAngle = tb_ReadValues[2] + 99;
+				// Activer le mode remote
 				commStatus = 1;
 			}
 			else
 			{
+				// Si CRC mauvais, toggles la LED 6
                 BSP_LEDToggle(BSP_LED_6);
-				//commStatus = 0;
 			}
 		}
+		// Si pas de byte start dans la première donnée du message reçu
 		else
 		{
 			i = 0;
-			// Recherche du début du message 0xAA dans les données reçues
+			// Recherche du début du byte de start (0xAA) dans les données reçues
 			for(i = 1; i < MESS_SIZE; i++)
 			{
+				// Si byte start trouvé
 				if(findFlag != 0)
 				{
 					if(startIndex < 4)
@@ -169,9 +194,10 @@ int GetMessage(S_pwmSettings *pData)
 					}
                     findFlag = 0;
 				}
+				// Si byte de start pas trouvé
 				else
 				{
-					// 
+					// Parcourir le tableau de données pour chercher le byte de Start (0xAA = STX_code)
 					if(tb_ReadValues[i] == STX_code)
 					{
 						// Activer le flag
@@ -181,8 +207,24 @@ int GetMessage(S_pwmSettings *pData)
 						// Deplacement du byte de start dans la premier case
                         // de tb_ReadValues
 						tb_ReadValues[0] = tb_ReadValues[i];
-						// Calcul du nombre de bytes qui restent pour 
-                        // le message complet est sauvegarde dans
+						// Nombre de bytes qui restent pour 
+                        // le message complet = index du byte de start
+						// Ex 1:
+						// 0  |0xFE|
+						// 1  |0xAB|
+						// 2  |0xAA|  	=> byte de start => startIndex = 2
+						// 3  |0x45|	=> Donnée 1
+						// 4  |0x13|  	=> Donnée 2 
+						//
+						//	3 bytes sur 5 reçus, donc manquent 2 bytes = startIndex
+						// Ex 2:
+						// 0  |0xFE|
+						// 1  |0x5G|
+						// 2  |0x03|  
+						// 3  |0xAA|	=> byte de start => startIndex = 3
+						// 4  |0xB3|	=> Donnée 1
+						//
+						//	2 bytes sur 5 reçus, donc manquent 3 bytes = startIndex					
 						NbCharToRead = startIndex;
 						
 					}
